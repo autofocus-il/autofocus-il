@@ -2,7 +2,6 @@ Official repository for AutoFocus-IL: VLM-based Saliency Maps for Data-Efficient
 Visual Imitation Learning without Extra Human Annotations
 
 + [Project Page](https://autofocus-il.github.io/)
-+ [Paper](https://autofocus-il.github.io/assets/pdf/autofocus-il.pdf)
 
 # 1. CARLA Experiments
 
@@ -33,7 +32,7 @@ The pipeline uses a Vision-Language Model API for scene understanding. You need 
 
 #### Example: Using SiliconFlow
 
-[SiliconFlow](https://www.siliconflow.com/) provides fast inference for open-source VLMs like Qwen.
+[SiliconFlow](https://www.siliconflow.com/) provides fast inference for open-source VLMs.
 
 **Step 1: Set your API key**
 ```bash
