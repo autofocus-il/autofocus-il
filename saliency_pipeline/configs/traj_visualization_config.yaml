@@ -1,0 +1,18 @@
+# Trajectory Visualization (per-seed GIF)
+
+data:
+  dataset_dir: "/path/to/dataset/bench2drive220_confounded"
+
+seed:
+  route_id: 2416
+  seed_id: 200
+
+processing:
+  frame_step: 1
+  max_frames: 99999
+  # resize: { width: 640, height: 360 }  # optional; remove or set nulls to keep original
+
+output:
+  out_dir: "/path/to/vizs"
+  gif_name: "{seed_id}_traj.gif"
+  fps: 20

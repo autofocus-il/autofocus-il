@@ -1,0 +1,114 @@
+# Torch multi-run example
+matrix:
+  algos: ["bc"]  # Can be changed to ["bc", "gc_bc", "gc_ddpm_bc"]
+  tasks: ["lift_carrot_100"]  # Can be changed to any data_config task below:
+  # Optional: Cartesian product scan on Saliency weight (combined with algos×tasks and encoders/backbones)
+  saliency_weights: [5,10,15,20,25,30]
+  # Optional: Cartesian product scan on dataset obs_horizon (expanded with above combinations)
+  obs_horizons: [1]
+  #   - "lift_carrot_100"
+  #   - "lift_carrot_100_confounded"
+  #   - "pull_pot_100"
+  #   - "put_carrot_in_pot_100"
+  #   - "put_in_pot_lid_100"
+  #   - "remove_pot_lid_150"
+  # Optional: Select encoder for different run (Cartesian product with algos×tasks)
+  # Directly give encoder name (supports three types):
+  # encoders: ["resnetv1-50-bridge"]
+  # Or only give backbone (arch), internally will use generic "resnetv1-bridge" and pass encoder_kwargs.arch:
+  backbones: ["resnet34"]
+
+global:
+  encoder_kwargs:
+    add_spatial_coordinates: false
+
+  saliency:
+    enabled: false
+    alpha: 0.7
+    beta: 1.0
+  # Paths
+  # data_root: /path/to/dataset/bdv2_tfrecord
+  # save_dir: /path/to/exp/bdv2_runs
+  data_root: /path/to/dataset/bdv2_numpy
+  save_dir: /path/to/torch_runs
+  # Training schedule
+  train_batch_size: 2000
+  num_steps: 200
+  save_interval: 200
+  log_interval: 10
+  # Eval
+  val_batch_size: 20
+  eval_batches: null  # Set to null to skip evaluation completely
+  eval_interval: 500
+
+  # scheduler.type:
+  #   - "constant"
+  #   - "warmup_cosine"
+  scheduler:
+    type: "warmup_cosine"
+  warmup_steps: 20  
+
+  # Optional CUDA devices (string like "0,1")
+  cuda_visible_devices: "1,2,4,5"
+
+  name_format: "{algo}_{task}"
+  # Unified saliency configuration (global effective)
+  # Extra CLI overrides (will be appended directly to command line)
+  extra_args:
+    # Turn on proprio input for body/target encoder concatenation via YAML
+    - "--config.agent_kwargs.use_proprio True"
+
+  
+  # Dataset related optional configuration (will be mapped to config.dataset_kwargs.*)
+  dataset:
+    # Observation time window: stacked as 3*obs_horizon by channel
+    obs_horizon: 1
+    # Action prediction window: only GC-DDPM-BC supports >1, BC/GC-BC will force to 1
+    act_pred_horizon: 1
+    # Image augmentation
+    augment: true
+    augment_next_obs_goal_differently: false
+    augment_kwargs:
+      # Turn off spatial augmentation (remove random_resized_crop), only keep color augmentation
+      random_brightness: [0.2]
+      random_contrast: [0.8, 1.2]
+      random_saturation: [0.8, 1.2]
+      random_hue: [0.1]
+      augment_order:
+        - random_brightness
+        - random_contrast
+        - random_saturation
+        - random_hue
+
+  # Distributed training (multi_train.py will launch each run with torchrun based on this config)
+  ddp:
+    enabled: true
+    nproc_per_node: 4
+
+  # Performance optimization configuration
+  # AMP (Automatic Mixed Precision) - Mixed precision training
+  amp:
+    enabled: true
+    dtype: "bf16"
+    growth_factor: 2.0      # loss scale growth factor (only effective for FP16)
+    backoff_factor: 0.5     # loss scale backoff factor (only effective for FP16)
+    growth_interval: 2000   # growth interval steps (only effective for FP16)
+
+  # torch.compile - Model compilation optimization
+  compile:
+    enabled: true
+    kwargs:
+      mode: "default"        # Compilation mode: default, reduce-overhead, max-autotune
+      dynamic: false         # Whether to support dynamic shapes
+      fullgraph: false       # Whether to require full graph compilation
+
+  # DataLoader settings
+  dataloader:
+    num_workers: 8
+    prefetch_factor: 2
+    persistent_workers: true
+    pin_memory: true
+
+  # WandB project settings: can override default project name here
+  wandb:
+    project: "bridgedata_torch"

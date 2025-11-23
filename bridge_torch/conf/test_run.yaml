@@ -1,0 +1,97 @@
+defaults:
+  - algo: bc
+  - bridgedata: lift_carrot_100
+  - _self_
+
+# Paths
+# - data_path: root containing BDV2 numpy folders (task/train/out.npy, task/val/out.npy)
+# - save_dir: where to store runs and checkpoints
+data_path: "/path/to/test_dataset/bdv2_numpy"
+save_dir: "/path/to/torch_runs_test"
+
+# Saliency Unified Configuration (Single Entry Point)
+# - enabled: Whether to enable attention (Reg) regularization
+# - weight:  Weight of regularization loss (total loss = base + weight * reg)
+# - beta:    Temperature when generating attention mask (see get_gaze_mask)
+# - alpha:   Data-side time aggregation coefficient (when obs_horizon>1, accumulate s(t-k)*alpha^k)
+saliency:
+  enabled: false
+  weight: 5
+  beta: 1.0
+  alpha: 1.0
+
+# Experiment naming (used for save_dir/run folder name prefix)
+# Override on CLI: name=myexp
+name: ""
+# task_stack_proprio_saliency_
+
+# Debug mode (disables W&B online if your WandB wrapper uses it)
+debug: false
+
+batch_size: 20
+val_batch_size: 20
+num_steps: 100
+log_interval: 10
+eval_interval: 50
+eval_batches: 0   # <=0 means unlimited; null to skip
+save_interval: 50
+# todo: resume_path: "/vla-reasoning/torch_runs/bc_lift_carrot_100/ckpt_2000000.pt"
+
+
+# Runtime
+# device: cuda | cpu
+seed: 42
+device: cuda
+
+# DDP (launch with torchrun; Hydra multirun is separate)
+# - enabled: true to wrap model in DDP when launched via torchrun
+# - find_unused_parameters: enable only if required by your model graph
+ddp:
+  enabled: false
+  find_unused_parameters: false
+
+# AMP: Automatic Mixed Precision
+# - dtype: bf16 | fp16 (bf16 recommended on A100/H100; fp16 uses GradScaler)
+amp:
+  enabled: true
+  dtype: bf16
+  growth_factor: 2.0
+  backoff_factor: 0.5
+  growth_interval: 2000
+
+# torch.compile optimization (PyTorch 2.x)
+# - kwargs.mode: default | reduce-overhead | max-autotune
+# - kwargs.dynamic/fullgraph: advanced toggles for dynamo
+compile:
+  enabled: true
+  kwargs:
+    mode: default
+    dynamic: false
+    fullgraph: false
+
+# DataLoader settings (used by bridge_numpy iterator wrapper)
+dataloader:
+  num_workers: 8
+  prefetch_factor: 2
+  persistent_workers: false
+  pin_memory: true
+
+# WandB project (set wandb.enabled=false to disable fully)
+wandb:
+  project: bridgedata_torch
+  enabled: true
+
+
+# Inherited YAML override examples:
+# - Change encoder backbone:  encoder_kwargs.arch=resnet50
+# - Turn on proprio:          model.use_proprio=true
+# - Enable saliency:          saliency.enabled=true
+# - Adjust saliency strength: saliency.weight=0.2 saliency.beta=1.0 saliency.alpha=0.7
+# - Override data knobs:      data.obs_horizon=2 data.augment=true
+
+# Hydra runtime tweaks (keep PWD; no outputs to ./multirun by default)
+hydra:
+  job:
+    chdir: false
+  run:
+    dir: .

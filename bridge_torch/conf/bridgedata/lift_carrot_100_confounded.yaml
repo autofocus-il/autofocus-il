@@ -1,0 +1,7 @@
+defaults:
+  - _base
+task_name: "lift_carrot_100_confounded"
+include:
+  - ["lift_carrot_100_confounded"]
+exclude: []
+sample_weights: null

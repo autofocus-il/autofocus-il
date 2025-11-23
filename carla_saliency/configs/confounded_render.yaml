@@ -1,0 +1,36 @@
+# Rendering parameters for overlays (OpenCV BGR colors)
+render:
+  # Place indicators near the top middle of the image
+  anchor: "top_mid"   # options: top_mid | bottom_left
+  # Extra downward shift (pixels) for top_mid to ensure up-arrow is visible
+  top_mid_offset_y: 14
+  dot:
+    enabled: true
+    color_bgr: [0, 0, 255]   # red
+    radius: 7
+    margin_top: 10
+    offset_x: 0
+  arrow:
+    enabled: true
+    color_bgr: [255, 255, 255]  # white
+    # Base gap from the red dot. Can be overridden per direction below
+    gap_from_dot: 8
+    # Optional: independent gaps for left/right arrows (pixels)
+    gap_left: 28
+    gap_right: 10
+    # Optional: vertical offset for both left/right arrows (pixels, +down, -up)
+    y_offset: 0
+    length: 32
+    thickness: 2
+    head_size: 6
+
+# Optional thresholds (align with shared pipeline thresholds if provided)
+action_processing:
+  braking:
+    light_threshold: 0.1
+  steering:
+    straight_threshold: 0.05
+  throttle:
+    light_threshold: 0.1
+
+

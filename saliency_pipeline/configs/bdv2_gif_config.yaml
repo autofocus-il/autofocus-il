@@ -1,0 +1,27 @@
+data:
+  dataset_root: "/path/to/dataset/bdv2"
+  # task: "open_microwave"
+  task: "put_in_pot_lid"
+  task: "remove_pot_lid"
+  # timestamp: "2022-03-12_14-48-28" # open_microwave
+  # timestamp: "2025-09-03_14-21-25" # put_in_pot_lid
+  timestamp: "2025-09-03_14-21-25" # remove_pot_lid
+  traj_group: "traj_group0"
+  traj_name: "traj1"
+  # Camera index to export: 0, 1, 2, or "all" for each separately
+  camera: 0
+  # Frame selection
+  frame_glob: "im_*.jpg"
+  frame_step: 1
+  frame_range: { start: null, end: null }  # optional numeric index range based on filename suffix
+
+processing:
+  # Optional resizing; remove or set to null to keep original size
+  resize: { width: 640, height: 360 }
+  grayscale: false
+
+output:
+  out_dir: "/path/to/gifs"
+  filename: "{task}_{timestamp}_{traj}_{cam}.gif"
+  fps: 10
+

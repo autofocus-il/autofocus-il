@@ -1,0 +1,51 @@
+# Build Confounded Observations Config
+# Overlay brake dot (red) and steering arrow (white) based on actions per frame.
+
+data:
+  # Bench2Drive dataset directory
+  dataset_dir: "/path/to/dataset/bench2drive220_confounded"
+
+# Run modes: single_seed | single_route | all
+run_mode:
+  mode: "all"
+  single_seed:
+    route_id: 3472
+    seed_id: 200
+  # Optional single_route mode
+  single_route:
+    route_id: 2416
+
+processing:
+  # When mode == all, write processed frames back to observations.pt
+  write_back: true
+
+output:
+  # Where to save GIFs for single_seed mode
+  gifs_dir: "/path/to/gifs"
+  fps: 20
+
+# Rendering parameters for overlays (OpenCV BGR colors)
+render:
+  # Place indicators near the top middle of the image
+  anchor: "top_mid"   # options: top_mid | bottom_left
+  # Extra downward shift (pixels) for top_mid to ensure up-arrow is visible
+  top_mid_offset_y: 14
+  dot:
+    enabled: true
+    color_bgr: [0, 0, 255]   # red
+    radius: 7
+    margin_top: 10
+    offset_x: 0
+  arrow:
+    enabled: true
+    color_bgr: [255, 255, 255]  # white
+    # Base gap from the red dot. Can be overridden per direction below
+    gap_from_dot: 8
+    # Optional: independent gaps for left/right arrows (pixels)
+    gap_left: 28
+    gap_right: 10
+    # Optional: vertical offset for both left/right arrows (pixels, +down, -up)
+    y_offset: 0
+    length: 32
+    thickness: 2
+    head_size: 6

@@ -1,0 +1,117 @@
+# Hydra configuration for Behavior Cloning with Gaze Regularization (GABRIL)
+
+defaults:
+  - _self_
+
+# Data configuration
+data:
+  task: "Mixed_"  # Task name from Task_to_Route
+  hdf5_path: "/path/to/dataset/bench2drive220_robomimic.hdf5"
+  num_episodes: 200 # Number of episodes to use for training
+  img_height: 180
+  img_width: 320
+  frame_stack: 2  # Number of frames to stack
+  # Which gaze coords to read from HDF5 (must exist under data/demo_X/obs/<key>)
+  gaze_key: "gaze_coords" # Examples: gaze_coords, gaze_coords_gaze, gaze_coords_gaze_pseudo, gaze_coords_filter_dynamic, gaze_coords_non_filter
+  action_dim: 7  # Dimension of action space
+
+  batch_size: 4000
+  num_workers: 8
+  prefetch_factor: 2
+  cache_mode: "low_dim"  # HDF5 cache mode: "all", "low_dim", or null
+  cache_getitem: false   # When cache_mode=="all", avoid get_item caching to save memory
+  
+
+# Model configuration
+model:
+  grayscale: true  # Whether to convert images to grayscale
+  frame_stack: ${data.frame_stack}  # Reference from data config
+  embedding_dim: 64
+  num_hiddens: 128
+  num_residual_layers: 2
+  num_residual_hiddens: 32
+  z_dim: 256  # Latent dimension
+  last_feature_map_dim: [20, 38]
+  
+# Gaze configuration
+gaze:
+  method: "Reg"  # Gaze method: None, Teacher, Reg, Mask, Contrastive, ViSaRL, AGIL, GRIL
+  mask_sigma: 30.0  # Sigma for Gaussian gaze mask
+  mask_coeff: 0.8  # Base coefficient for gaze mask
+  max_points: 5  # Maximum number of gaze points
+  beta: 50.0  # Softmax temperature for GABRIL
+  lambda_weight: 10.0  # Loss coefficient for gaze regularization
+  contrastive_threshold: 10.0  # Threshold for contrastive method
+  prob_dist_type: "MSE"  # Probability distribution type: MSE, TV, KL, JS
+  ratio: 1  # Ratio of samples to use gazes (0.8 = 80% use gaze, 20% pure BC)
+  # Stack-wise causal aggregation (ignore L, aggregate along S with alpha decay)
+  temporal_flag: true
+  temporal_alpha: 0.7
+  temporal_use_future: false      # keep causality: only aggregate past frames
+
+# Dropout configuration
+dropout:
+  method: "None"  # Dropout method: None, Oreo, IGMD, GMD
+  num_embeddings: 512  # Number of embeddings for VQ-VAE (Oreo)
+  oreo_num_mask: 4  # Number of masks for Oreo
+  oreo_prob: 0.5  # Masking probability for Oreo
+  vqvae_path: ""  # Path to pre-trained VQ-VAE model (for Oreo)
+
+# Optimizer configuration
+optimizer:
+  type: "adam"  # Optimizer type: adam, adamw
+  lr: 5e-4  # Learning rate
+  weight_decay: 0.0  # Weight decay
+
+# Scheduler configuration
+scheduler:
+  type: "cosine_warmup"  # Scheduler type: none, step, cosine, cosine_warmup, cosine_warm_restarts, onecycle
+  step_size: 50  # Step size for StepLR
+  gamma: 0.5  # Gamma for StepLR
+  eta_min: 1e-6  # Minimum LR for cosine schedulers
+  warmup_steps: 500  # Number of warmup steps for cosine_warmup
+  # Cosine warm restarts parameters
+  T_0: 10
+  T_mult: 1
+  # OneCycle scheduler parameters
+  pct_start: 0.3
+  anneal_strategy: "cos"
+  div_factor: 25.0
+  final_div_factor: 10000.0
+
+# Training configuration
+training:
+  seed: 42
+  epochs: 500
+  device: "cuda:0"
+  use_amp: true
+  use_compile: true  # Use torch.compile
+  compile_backend: "inductor"  # torch.compile backend: inductor, aot_eager, etc.
+  compile_mode: "default"      # torch.compile mode: default, reduce-overhead, max-autotune
+  gradient_accumulation_steps: 1
+  save_interval: 50  # Save checkpoint every N epochs
+  distributed:
+    enabled: false
+    backend: "nccl"
+    find_unused_parameters: false
+    broadcast_buffers: true
+    gradient_as_bucket_view: true # for DDP bucket view
+
+# Logging configuration
+logging:
+  log_dir: "runs"  # TensorBoard logs directory
+  checkpoint_dir: "runs"  # Model checkpoints directory
+  save_params: true  # Save params.json for evaluation
+
+# Optional tag for experiment naming
+tag: ""
+
+# Hydra configuration
+hydra:
+  run:
+    dir: outputs/${now:%Y-%m-%d}/${now:%H-%M-%S}
+  sweep:
+    dir: multirun/${now:%Y-%m-%d}/${now:%H-%M-%S}
+    subdir: ${hydra.job.num}
+  job:
+    chdir: false

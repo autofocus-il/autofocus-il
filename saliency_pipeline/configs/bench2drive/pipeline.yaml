@@ -1,0 +1,215 @@
+# Unified pipeline config for Bench2Drive
+
+dataset:
+  type: bench2drive
+  bench2drive:
+    dataset_dir: "/path/to/dataset/bench2drive220"
+
+run:
+  # single_seed | single_route | all
+  mode: all
+  single_seed:
+    route_id: 2416
+    seed_id: 200
+  single_route:
+    route_id: 2416
+
+stages:
+  global_desc: true
+  vlm_filter: true
+  bbox_to_dataset: true
+
+processing:
+  seed: 42
+  max_frames: 999
+  frame_step: 1
+
+global_desc:
+  k_frames: 16
+  model: "Qwen/Qwen2.5-VL-72B-Instruct"
+  api_provider: "OpenAI"
+  fallback_models:
+    - "Qwen/Qwen2.5-VL-72B-Instruct"
+    - "Qwen/Qwen2.5-VL-32B-Instruct"
+    - "Qwen/Qwen2.5-VL-7B-Instruct"
+  output_dir: "/path/to/global_desc_results"
+  result_filename: "result.json"
+  json_indent: 2
+  json_ensure_ascii: false
+  prompt_template: |
+    Objective:
+    The following is a short video segment of an autonomous driving trajectory.
+
+    1. First, understand what the autonomous vehicle is doing in this video (e.g., approaching an intersection, stopping, turning, adjusting to other vehicles).
+
+    2. Identify and list all visible objects in the scene that are relevant to driving. For each object, provide:
+
+      - type: the object’s category (e.g., Stop Sign, Speed Limit Sign, Lane Markings, Vehicles).
+
+      - relevance: the role of this object in driving context (e.g., traffic_control, navigation, safety_critical, context).
+
+      - description: one sentence describing its appearance, meaning, and role in driving.
+
+    3. Ignore irrelevant background objects or decorations that do not affect the driving task.
+
+    4. Ensure consistent naming style for object type (singular, capitalized, concise).
+
+    5. After listing objects, summarize the vehicle’s behavioral description in one sentence (e.g., “The vehicle approaches a stop sign, halts, then continues driving while maintaining lane alignment and adjusting speed to oncoming traffic.”).
+
+    6. Finally, output a metadata block summarizing:
+
+    total_objects: total count of unique driving-relevant objects (not including pure context objects like trees/buildings, unless explicitly relevant).
+
+    object_types: array of the key object categories detected.
+
+    processed_frames: number of video frames analyzed.
+
+    7. Output must strictly follow this JSON format and avoid redundant text:
+    ```json
+    {
+      "route": "<route_id>",
+      "seed": "<seed_id>",
+      "k_frames": <number_of_frames>,
+      "objects": [
+        {
+          "type": "<object_type>",
+          "relevance": "<traffic_control|navigation|safety_critical|context>",
+          "description": "<one-sentence description>"
+        }
+      ],
+      "description": "<summary of what the vehicle is doing>",
+      "metadata": {
+        "total_objects": <int>,
+        "object_types": ["<object1>", "<object2>", "..."],
+        "processed_frames": <int>
+      }
+    }
+    ```
+  api:
+    timeout_seconds: 60
+    max_retries: 3
+
+vlm_filter:
+  vlm_enabled: true
+  grounding_model_id: "IDEA-Research/grounding-dino-base"
+  device: "cuda:0"
+  # Prompt 定制：可填写字符串或按域映射（如 {bdv2: "household manipulation", bench2drive: "autonomous driving"}）
+  prompt:
+    task_context: "autonomous driving"
+    templates:
+      bench2drive: |
+        You are analyzing a scene for autonomous driving.
+
+        Frame: {frame_id}
+        Global Intent: {global_context}
+        Action Intent: {action_context}
+
+        Candidates (normalized xyxy):
+        {candidates}
+
+        Task:
+        1) Select the top-K most relevant objects (<=3 by track_id) to safe driving and current intention.
+        2) For same class but different track_id, pick the one with highest importance now.
+        3) If you suspect missing categories for current frame, list them for re-detection.
+        4) Return JSON with this exact schema:
+        {
+          "top_k": [
+            {"id": <int>, "class": "<str>", "score": <float 0~1>, "rationale": "<short>"}
+          ],
+          "missing_suspects": ["<class>", ...]
+        }
+
+        Rules:
+        - Prioritize collision risks (in-path vehicles, close pedestrians/cyclists), rule-governing items (traffic_light/sign), and trajectory-relevant actors.
+        - "score" is an importance weight; approximate is fine; we only use ids for filtering.
+        - Return JSON only (no extra text).
+    # 可选：自定义 prompt 模板（使用占位符 {frame_id} / {global_context} / {action_context} / {candidates}）
+    # templates:
+    #   bench2drive: |
+    #     You are analyzing a scene for autonomous driving.
+    #
+    #     Frame: {frame_id}
+    #     Global Intent: {global_context}
+    #     Action Intent: {action_context}
+    #
+    #     Candidates (normalized xyxy):
+    #     {candidates}
+    #
+    #     Task:
+    #     1) Select the top-K most relevant objects (<=3 by track_id) to safe driving and current intention.
+    #     2) For same class but different track_id, pick the one with highest importance now.
+    #     3) If you suspect missing categories for current frame, list them for re-detection.
+    #     4) Return JSON with this exact schema:
+    #     {
+    #       "top_k": [
+    #         {"id": <int>, "class": "<str>", "score": <float 0~1>, "rationale": "<short>"}
+    #       ],
+    #       "missing_suspects": ["<class>", ...]
+    #     }
+    #
+    #     Rules:
+    #     - Prioritize collision risks (in-path vehicles, close pedestrians/cyclists), rule-governing items (traffic_light/sign), and trajectory-relevant actors.
+    #     - "score" is an importance weight; approximate is fine; we only use ids for filtering.
+    #     - Return JSON only (no extra text).
+  detection:
+    text_prompt: "car. person. traffic light. traffic sign. bicycle. motorcycle."
+    backend: "local"
+    use_existing_bbox_json: false
+    existing_base_dir: ""
+    existing_filename: "grounding_detections.json"
+    box_threshold: 0.4
+    text_threshold: 0.3
+    iou_threshold: 0.2
+  detail_level: "low"
+  max_redetect_iterations: 2
+  output:
+    base_output_dir: "/path/to/saliency_exp_results"
+    grounding_detections: "grounding_detections.json"
+    vlm_filtered_boxes: "vlm_filtered_boxes.json"
+    vlm_responses: "vlm_responses.json"
+    vlm_summary: "vlm_summary.json"
+  visualization:
+    fps: 20
+    vlm_annotated: "vlm_annotated"
+    tracking_annotated: "tracking_annotated"
+    vlm_gifs: "vlm_gifs"
+    tracking_gifs: "tracking_gifs"
+    gif_template_vlm: "{seed}_vlm_filtered.gif"
+    gif_template_tracking: "{seed}_tracking_only.gif"
+    box_thickness: 2
+    label_text_thickness: 1
+    label_text_scale: 0.5
+    tracking_label_scale: 0.5
+    font: "FONT_HERSHEY_SIMPLEX"
+    action_text_scale: 0.6
+    frame_info_scale: 0.5
+    tracking_info_scale: 0.5
+  api:
+    urls: []
+    urls_file: ""
+    timeout: 30
+    num_workers: 10
+  global_info:
+    use_dynamic_prompts: true
+    fallback_objects:
+      - "traffic signal"
+      - "traffic sign"
+      - "vehicle"
+      - "pedestrians"
+      - "cyclists"
+
+bbox_to_dataset:
+  overwrite: true
+  saliency_results_dir: "/path/to/saliency_exp_results"
+  filenames:
+    grounding_detections: "grounding_detections.json"
+    vlm_filtered_boxes: "vlm_filtered_boxes.json"
+    non_filter_pt: "non_filter.pt"
+    filter_dynamic_pt: "filter_dynamic.pt"
+
+# API Configuration (shared, no model duplication here)
+api:
+  OpenAI:
+    base_url: "your_api_url"
+    api_key_env: "SALIENCY_API_KEY"  # Environment variable name
+    default_key: "sk-..."  # Fallback key

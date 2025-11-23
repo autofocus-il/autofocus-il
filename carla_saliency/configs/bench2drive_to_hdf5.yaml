@@ -1,0 +1,27 @@
+dataset_root: "/path/to/dataset/bench2drive220"
+output_hdf5: "/path/to/dataset/bench2drive220_robomimic.hdf5"
+
+# Which gaze-like annotations to include in HDF5
+# All four can coexist in the file; training can choose which to use.
+include_gaze: true  # from gaze.pt
+include_gaze_pseudo: true  # from gaze_pseudo.pt
+include_filter_dynamic: true  # from filter_dynamic.pt
+include_non_filter: true  # from non_filter.pt
+max_gaze_points: 5
+
+# Action vector dimension. If the raw file has fewer dims, pad with zeros; if more, truncate.
+action_dim: 7
+
+# HDF5 writing options
+compression: "lzf"  # choices: [null, "lzf", "gzip"]
+gzip_level: 4  # only used when compression == "gzip"
+chunk_len: 256  # chunk along time dimension when writing
+
+# Optional filters / limits
+limit_episodes: null  # or an integer
+include_routes: []  # e.g., ["route_2416", "route_24211"]
+include_seeds: []  # e.g., ["seed_200", "seed_201"]
+
+# Behavior
+skip_on_error: true
+verbose: true

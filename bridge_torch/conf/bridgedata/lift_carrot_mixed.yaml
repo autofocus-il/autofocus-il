@@ -1,0 +1,9 @@
+defaults:
+  - _base
+
+task_name: "lift_carrot_mixed"
+
+include:
+  - ["lift_carrot_100_new", "lift_carrot_100", "lift_carrot_100_confounded"]
+exclude: []
+sample_weights: null

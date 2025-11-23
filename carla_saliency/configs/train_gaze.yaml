@@ -1,0 +1,132 @@
+# Hydra configuration for Gaze Predictor training
+defaults:
+  - _self_
+
+# Data configuration
+data:
+  task: "Mixed_"
+  hdf5_path: "/path/to/dataset/bench2drive220_robomimic_large_chunk.hdf5"
+  num_episodes: 200  # Number of episodes to use for training
+  batch_size: 4000
+  num_workers: 16
+  prefetch_factor: 8
+  frame_stack: 2
+  seq_length: 1
+  cache_mode: "all"  # Options: "all", "low_dim", null
+  # Which gaze coords to read from HDF5 (must exist under data/demo_X/obs/<key>)
+  # Examples: gaze_coords, gaze_coords_gaze, gaze_coords_gaze_pseudo, gaze_coords_filter_dynamic, gaze_coords_non_filter
+  gaze_key: "gaze_coords"
+  img_height: 180
+  img_width: 320
+
+# Model configuration
+model:
+  frame_stack: ${data.frame_stack}
+  grayscale: true
+  embedding_dim: 64
+  num_hiddens: 128
+  num_residual_layers: 2
+  num_residual_hiddens: 32
+
+# Gaze configuration
+gaze:
+  sigma: 30.0  # Gaussian sigma for gaze mask
+  coeff: 0.8   # Base coefficient for gaze mask
+  max_points: 5  # Maximum number of gaze points
+  temporal_use_future: false
+
+# Training configuration
+training:
+  seed: 1
+  epochs: 500
+  device: "cuda:0"
+  use_amp: true  # Use automatic mixed precision
+  use_compile: true  # Use torch.compile
+  compile_backend: "inductor"  # torch.compile backend: inductor, aot_eager, etc.
+  compile_mode: "default"     # torch.compile mode: default, reduce-overhead, max-autotune
+  gradient_accumulation_steps: 1
+  save_interval: 50  # Save checkpoint every N epochs
+  vis_interval: 25  # Generate visualizations every N epochs
+  distributed:
+    enabled: false
+    backend: "nccl"
+    find_unused_parameters: false
+    broadcast_buffers: true
+    gradient_as_bucket_view: true # for DDP bucket view
+
+# Optimizer configuration
+optimizer:
+  type: "adam"  # Options: "adam", "adamw"
+  lr: 5e-4
+  weight_decay: 0.0
+
+# Learning rate scheduler configuration
+scheduler:
+  type: "step"  # Options: "step", "cosine", "cosine_warm_restarts", "cosine_warmup", "onecycle", "none"
+  # Step scheduler parameters
+  step_size: 50
+  gamma: 0.5
+  # Cosine scheduler parameters
+  eta_min: 0.000001
+  # Cosine warm restarts parameters
+  T_0: 10
+  T_mult: 1
+  # OneCycle scheduler parameters
+  pct_start: 0.3
+  anneal_strategy: "cos"  # Options: "cos", "linear"
+  div_factor: 25.0
+  final_div_factor: 10000.0
+  # Cosine warmup parameters
+  warmup_steps: 500
+
+# Logging configuration
+logging:
+  log_dir: "/path/to/project_root/runs"  # TensorBoard logs directory
+  checkpoint_dir: "/path/to/project_root/runs"  # Model checkpoints directory
+  save_params: true  # Save params.json for evaluation
+  vis_interval: 25  # Visualize predictions every N epochs
+
+# Optional tag for experiment naming
+tag: null
+
+# Hydra configuration
+hydra:
+  run:
+    dir: outputs/${now:%Y-%m-%d}/${now:%H-%M-%S}
+  sweep:
+    dir: multirun/${now:%Y-%m-%d}/${now:%H-%M-%S}
+    subdir: ${hydra.job.num}
+  launcher:
+    _target_: hydra._internal.core_plugins.basic_launcher.BasicLauncher
+  sweeper:
+    _target_: hydra._internal.core_plugins.basic_sweeper.BasicSweeper
+    max_batch_size: null
+  help:
+    app_name: ${hydra.job.name}
+    header: |
+      == Gaze Predictor Training ==
+      Train a gaze predictor model using robomimic dataset
+    footer: |
+      Powered by Hydra (https://hydra.cc)
+      Use --hydra-help to view Hydra specific help
+    template: |
+      ${hydra.help.header}
+      
+      == Configuration groups ==
+      Compose your configuration from those groups
+      
+      == Config ==
+      Override anything in the config
+      
+      Examples:
+      --------
+      # Train with different batch size
+      python train_gaze_predictor.py data.batch_size=64
+      
+      # Use different learning rate and scheduler
+      python train_gaze_predictor.py optimizer.lr=0.0001 scheduler.type=cosine
+      
+      # Train with more epochs
+      python train_gaze_predictor.py training.epochs=1000
+      
+      ${hydra.help.footer}

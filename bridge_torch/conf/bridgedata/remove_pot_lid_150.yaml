@@ -1,0 +1,7 @@
+defaults:
+  - _base
+task_name: "remove_pot_lid_150"
+include:
+  - ["remove_pot_lid_150"]
+exclude: []
+sample_weights: null

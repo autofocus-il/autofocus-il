@@ -1,0 +1,113 @@
+# Torch multi-run example
+# python bridge_torch/experiments/multi_train.py --config bridge_torch/experiments/configs/multi_train.yaml
+
+matrix:
+  algos: ["bc"]  # 可改为 ["bc", "gc_bc", "gc_ddpm_bc"]
+  tasks: ["lift_carrot_100"]  # 可改为以下任一 data_config 任务：
+  #   - "lift_carrot_100"
+  #   - "lift_carrot_100_confounded"
+  #   - "pull_pot_100"
+  #   - "put_carrot_in_pot_100"
+  #   - "put_in_pot_lid_100"
+  #   - "remove_pot_lid_150"
+
+global:
+  # Paths
+  # data_root: /path/to/dataset/bdv2_tfrecord
+  # save_dir: /path/to/exp/bdv2_runs
+  data_root: /path/to/test_dataset/bdv2_numpy
+  save_dir: /path/to/torch_runs_test
+  # Training schedule
+  train_batch_size: 500
+  num_steps: 10
+  save_interval: 5
+  log_interval: 1
+  # Eval
+  val_batch_size: 20
+  eval_batches: null  # Set to null to skip evaluation completely
+  eval_interval: 500
+
+  # 学习率调度策略（可选）
+  # scheduler.type:
+  #   - "constant": 学习率恒定为 agent_kwargs.learning_rate
+  #   - "warmup_cosine": 先按 warmup_steps 线性预热，再按对应 *decay_steps* 余弦衰减
+  #     - 对 bc/gc_bc 使用 decay_steps_bc / decay_steps_gc_bc
+  #     - 对 gc_ddpm_bc 使用 actor_decay_steps_gc_ddpm_bc
+  scheduler:
+    type: "warmup_cosine"
+
+  warmup_steps: 1
+  # Default decay steps per algorithm (can override per-run)
+  decay_steps_bc: 10
+  decay_steps_gc_bc: 10
+  actor_decay_steps_gc_ddpm_bc: 10
+
+  # Optional CUDA devices (string like "0,1")
+  cuda_visible_devices: "1"
+
+  name_format: "{algo}_{task}"
+  saliency:
+    enabled: false
+    alpha: 0.7
+    beta: 1.0
+    weight: 1
+  extra_args:
+    # 通过 YAML 打开本体/目标编码器拼接的 proprio 输入
+    - "--config.agent_kwargs.use_proprio True"
+    # 示例：开启 Saliency 正则（Reg）并设置权重
+    # 对于 bc / gc_bc：放在 policy_kwargs 下
+
+  # 数据集相关可选配置（将映射到 config.dataset_kwargs.*）
+  dataset:
+    # 观测时间窗口：按通道堆叠为 3*obs_horizon
+    obs_horizon: 1
+    # 动作预测窗口：仅 GC-DDPM-BC 支持 >1，BC/GC-BC 将强制为 1
+    act_pred_horizon: 1
+    # 图像增强
+    augment: true
+    augment_next_obs_goal_differently: false
+    augment_kwargs:
+      # 关闭空间类增强（去掉 random_resized_crop），仅保留颜色增强
+      random_brightness: [0.2]
+      random_contrast: [0.8, 1.2]
+      random_saturation: [0.8, 1.2]
+      random_hue: [0.1]
+      augment_order:
+        - random_brightness
+        - random_contrast
+        - random_saturation
+        - random_hue
+
+  # 分布式训练（multi_train.py 将按本配置用 torchrun 启动每个 run）
+  ddp:
+    enabled: false
+    nproc_per_node: 1
+
+  # 性能优化配置
+  # AMP (Automatic Mixed Precision) - 混合精度训练
+  amp:
+    enabled: true
+    dtype: "bf16"
+    growth_factor: 2.0      # loss scale 增长因子（仅 FP16 有效）
+    backoff_factor: 0.5     # loss scale 回退因子（仅 FP16 有效）
+    growth_interval: 2000   # 增长间隔步数（仅 FP16 有效）
+
+  # torch.compile - 模型编译优化
+  compile:
+    enabled: true
+    kwargs:
+      mode: "default"        # 编译模式: default, reduce-overhead, max-autotune
+      dynamic: false         # 是否支持动态形状
+      fullgraph: false       # 是否要求完整图编译
+
+  # DataLoader 配置
+  dataloader:
+    num_workers: 8
+    prefetch_factor: 4
+    persistent_workers: true
+    pin_memory: true
+
+  # WandB 项目设置：可在此处覆盖默认 project 名称
+  wandb:
+    enabled: true
+    project: "bridgedata_torch"

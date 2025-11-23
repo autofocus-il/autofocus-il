@@ -1,0 +1,12 @@
+defaults:
+  - _base
+
+include:
+  - ["icra/?*/?*/?*"]
+  - ["flap/?*/?*/?*"]
+  - ["bridge_data_v1/berkeley/?*/?*"]
+  - ["rss/?*/?*/?*"]
+  - ["bridge_data_v2/?*/?*/?*"]
+  - ["scripted/?*"]
+exclude: []
+sample_weights: null

@@ -1,0 +1,7 @@
+defaults:
+  - _base
+task_name: "pull_pot_100_confounded"
+include:
+  - ["pull_pot_100_confounded"]
+exclude: []
+sample_weights: null

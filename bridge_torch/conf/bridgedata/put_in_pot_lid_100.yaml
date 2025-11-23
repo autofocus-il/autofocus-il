@@ -1,0 +1,7 @@
+defaults:
+  - _base
+task_name: "put_in_pot_lid_100"
+include:
+  - ["put_in_pot_lid_100"]
+exclude: []
+sample_weights: null

@@ -1,0 +1,46 @@
+defaults:
+  - _self_
+
+data:
+  hdf5_path: "/path/to/dataset/bench2drive220_robomimic_confounded.hdf5"
+  num_episodes: 20
+  batch_size: 16
+  num_workers: 4
+  prefetch_factor: 4
+  # 图像尺寸仅用于热图生成与显示
+  frame_stack: 4 # not used by viz; kept for consistency
+  cache_mode: "low_dim"
+  cache_getitem: false
+  img_height: 180
+  img_width: 320
+  action_dim: 7
+  # Which gaze coords to read from HDF5 (must exist under data/demo_X/obs/<key>)
+  # Examples: gaze_coords, gaze_coords_gaze, gaze_coords_gaze_pseudo, gaze_coords_filter_dynamic, gaze_coords_non_filter
+  gaze_key: "gaze_coords_filter_dynamic"
+
+model:
+  grayscale: true
+  frame_stack: ${data.frame_stack}
+
+gaze:
+  mask_sigma: 15.0
+  mask_coeff: 0.8
+  max_points: 5
+  # 可视化采用基于 stack 窗口的因果聚合（不使用 L/T 时序）
+  temporal_alpha: 0.7   # 因果聚合的衰减系数 alpha
+
+training:
+  device: "cuda:0"
+
+logging:
+  viz_dir: "/path/to/project_root/outputs/filter_dynamic_gif"
+
+viz:
+  max_frames: 999
+  fps: 10
+  alpha: 0.5
+  mode: full_demo  # default: read a full demo directly from HDF5
+  # Select which demo to visualize
+  demo_index: 0    # when demo_key is empty, use index into data group
+  demo_key: "42"     # optional explicit key like "demo_000123"
+  stack_window: 4  # 每一帧的热图与前面 (stack_window-1) 帧做因果聚合
